@@ -1,0 +1,9 @@
+listen_ip: '0.0.0.0' # IP address for listening to discovery messages and OSC messages
+listen_port: 8010 # Port for listening to OSC messages
+
+llf_save_path_csv: 'D:\LiveLinkFace\LiveLinkFaceCSV'
+llf_save_path_video: 'D:\LiveLinkFace\LiveLinkFaceVideo'
+llf_port: 8006 # Port for LLF on iPhone has to match the one in the iOS app
+
+receive_csv_port: 8007 # Port for receiving data from LLF
+receive_video_port: 8008 # Port for receiving video from LLF
