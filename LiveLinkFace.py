@@ -146,9 +146,7 @@ class LiveLinkFaceClient:
         This method sets the file name for capturing on the iPhone server.
         It also resets the capture number.
         """
-        gloss = ''.join(e for e in gloss if e.isalnum())
         print("Setting filename to: ", gloss)
-        print("ARGS: ", args)
 
         # Don't reset the take number if the gloss is the same
         if self.gloss != gloss:
@@ -263,6 +261,16 @@ class LiveLinkFaceServer:
         """
         self.client.start_capture()
         self.send_signal_recording_tcp()
+    
+    def stop_recording(self, *args):
+        """
+        Stop recording with the iPhone.
+
+        Description:
+        This method stops recording with the iPhone.
+        """
+        self.client.stop_capture()
+        self.send_close_tcp()
 
     def send_basic_cmd_tcp(self, cmd, extra="", port=None, *args):
         """

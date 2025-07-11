@@ -21,7 +21,6 @@ from LiveLinkFace import LiveLinkFaceServer
 import yaml
 import zeroconfScream
 from discoveryServer import WebSocketServer
-import asyncio
 import threading 
 
 async def main():
