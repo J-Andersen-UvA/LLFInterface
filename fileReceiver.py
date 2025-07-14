@@ -29,6 +29,7 @@ class FileReceiver:
         self.output_dir = Path(output_dir)
         self.endpoint = endpoint
         self.send_to_endpoint = send_to_endpoint
+        self.files_to_send = []
         self.filename = filename
         self._init_output_dir()
 
@@ -100,6 +101,7 @@ class FileReceiver:
                 for chunk in chunks:
                     f.write(chunk)
             print(f"[receiver:{self.filename}] Saved file to {out_path}")
+            self.files_to_send.append(out_path)
 
             if self.send_to_endpoint:
                 self._go_send_files_to_endpoint()
@@ -115,20 +117,19 @@ class FileReceiver:
         """
         Send all files in self.output_dir to the endpoint.
         """
-        for file in self.output_dir.glob("*"):
-            if file.is_file():
-                try:
-                    response = self._send_file_to_endpoint(
-                        self.endpoint,
-                        file,
-                        field_name="file",
-                        extra_data={"filename": file.name},
-                    )
-                    print(f"[receiver:{self.filename}] Successfully uploaded {file.name}: {response.status_code}")
-                except requests.HTTPError as e:
-                    print(f"[receiver:{self.filename}] Failed to upload {file.name}: {e}")
-                except Exception as e:
-                    print(f"[receiver:{self.filename}] Error sending file {file.name}: {e}")
+        for file in self.files_to_send:
+            try:
+                response = self._send_file_to_endpoint(
+                    self.endpoint,
+                    file,
+                    field_name="file",
+                    extra_data={"filename": file.name},
+                )
+                print(f"[receiver:{self.filename}] Successfully uploaded {file}: {response.status_code}")
+            except requests.HTTPError as e:
+                print(f"[receiver:{self.filename}] Failed to upload {file}: {e}")
+            except Exception as e:
+                print(f"[receiver:{self.filename}] Error sending file {file}: {e}")
 
     def _send_file_to_endpoint(self, endpoint: str, file_path: str, field_name: str = "file", extra_data: dict = None, headers: dict = None) -> requests.Response:
         """
@@ -160,4 +161,3 @@ class FileReceiver:
         # Raise an exception for error codes (4xx, 5xx)
         resp.raise_for_status()
         return resp
-    

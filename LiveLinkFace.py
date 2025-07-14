@@ -300,7 +300,7 @@ class LiveLinkFaceServer:
         """
         try:
             self.client.request_battery()
-            if self.battery_percentage < 10.0:
+            if self.battery_percentage < 11.0:
                 print(f"[LLF Warning] Battery percentage is low: {self.battery_percentage}%")
                 return False, "Battery percentage is low"
             if not self.client.phone_present:
