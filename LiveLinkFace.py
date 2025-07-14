@@ -184,8 +184,8 @@ class LiveLinkFaceClient:
         # File name has the format 20250714_test7_250714_5_0/test7_250714_5_0_vislabLivelink_cal.csv so lets remove the first part
         splitBlendshapeCSV = blendshapeCSV.split("/")[-1]
         splitReferenceMOV = referenceMOV.split("/")[-1]
-        csv_receiver = FileReceiver(host=IP_MACHINE, port=self.args.get('receive_csv_port', None), output_dir=self.args.get('llf_save_path_csv', None), filename=splitBlendshapeCSV)
-        mov_receiver = FileReceiver(host=IP_MACHINE, port=self.args.get('receive_video_port', None), output_dir=self.args.get('llf_save_path_video', None), filename=splitReferenceMOV)
+        csv_receiver = FileReceiver(host=IP_MACHINE, port=self.args.get('receive_csv_port', None), output_dir=self.args.get('llf_save_path_csv', None), filename=splitBlendshapeCSV, endpoint=self.args.get('endpoint', 'https://signcollect.nl/razerUpload/upload.php'), send_to_endpoint=True)
+        mov_receiver = FileReceiver(host=IP_MACHINE, port=self.args.get('receive_video_port', None), output_dir=self.args.get('llf_save_path_video', None), filename=splitReferenceMOV, endpoint=self.args.get('endpoint', 'https://signcollect.nl/razerUpload/upload.php'), send_to_endpoint=True)
         print(f"send the transport towards:\tCSV{IP_MACHINE}:{str(self.args.get('receive_csv_port', None))}\tMOV{IP_MACHINE}:{str(self.args.get('receive_video_port', None))}")
         self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(csv_receiver.port), blendshapeCSV])
         self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(mov_receiver.port), referenceMOV])
