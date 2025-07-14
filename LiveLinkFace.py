@@ -76,6 +76,8 @@ class LiveLinkFaceClient:
         self.port = args.get('llf_port', None)
         self.phone_present = False
 
+        self.record_stop_confirm = True
+
         if IP_IPHONE == "":
             print("Please set the IP of the iPhone, and then call LiveLinkFaceClient.init_apple_con().")
         else:
@@ -135,6 +137,7 @@ class LiveLinkFaceClient:
         """
         self.send_message_to_iphone("/RecordStop", [])
         self.takenumber += 1
+        self.record_stop_confirm = False
 
     def set_filename(self, gloss, *args):
         """
@@ -177,6 +180,7 @@ class LiveLinkFaceClient:
         Description:
         This method sends a transport message to the iPhone server to save a file.
         """
+        self.record_stop_confirm = True
         # File name has the format 20250714_test7_250714_5_0/test7_250714_5_0_vislabLivelink_cal.csv so lets remove the first part
         splitBlendshapeCSV = blendshapeCSV.split("/")[-1]
         splitReferenceMOV = referenceMOV.split("/")[-1]
@@ -295,12 +299,16 @@ class LiveLinkFaceServer:
         This method performs a health check by sending a message to the iPhone server.
         """
         try:
-            # TODO: Uncomment the following lines when the client is ready
             self.client.request_battery()
             if self.battery_percentage < 10.0:
                 print(f"[LLF Warning] Battery percentage is low: {self.battery_percentage}%")
                 return False, "Battery percentage is low"
-            # self.send_are_you_okay_tcp()
+            if not self.client.phone_present:
+                print("[LLF Warning] iPhone is not present.")
+                return False, "iPhone is not present"
+            if not self.client.record_stop_confirm:
+                print("[LLF Warning] Record stop confirm not received by iPhone.")
+                return False, "Record stop confirm not received by iPhone"
             return True, ""
         except Exception as e:
             print(f"[Warning] Exception during health check: {e}")
