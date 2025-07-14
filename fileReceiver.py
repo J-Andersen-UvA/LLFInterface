@@ -130,6 +130,8 @@ class FileReceiver:
                 print(f"[receiver:{self.filename}] Failed to upload {file}: {e}")
             except Exception as e:
                 print(f"[receiver:{self.filename}] Error sending file {file}: {e}")
+        
+        self.files_to_send.clear()  # Clear the list after sending
 
     def _send_file_to_endpoint(self, endpoint: str, file_path: str, field_name: str = "file", extra_data: dict = None, headers: dict = None) -> requests.Response:
         """
