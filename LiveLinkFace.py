@@ -32,6 +32,7 @@ LiveLinkFaceServer:
 from pythonosc.udp_client import SimpleUDPClient
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import BlockingOSCUDPServer
+from fileReceiver import FileReceiver
 import sys
 import socket
 import struct
@@ -176,9 +177,14 @@ class LiveLinkFaceClient:
         Description:
         This method sends a transport message to the iPhone server to save a file.
         """
+        # File name has the format 20250714_test7_250714_5_0/test7_250714_5_0_vislabLivelink_cal.csv so lets remove the first part
+        splitBlendshapeCSV = blendshapeCSV.split("/")[-1]
+        splitReferenceMOV = referenceMOV.split("/")[-1]
+        csv_receiver = FileReceiver(host=IP_MACHINE, port=self.args.get('receive_csv_port', None), output_dir=self.args.get('llf_save_path_csv', None), filename=splitBlendshapeCSV)
+        mov_receiver = FileReceiver(host=IP_MACHINE, port=self.args.get('receive_video_port', None), output_dir=self.args.get('llf_save_path_video', None), filename=splitReferenceMOV)
         print(f"send the transport towards:\tCSV{IP_MACHINE}:{str(self.args.get('receive_csv_port', None))}\tMOV{IP_MACHINE}:{str(self.args.get('receive_video_port', None))}")
-        self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(self.args.get('receive_csv_port', None)), blendshapeCSV])
-        self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(self.args.get('receive_video_port', None)), referenceMOV])
+        self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(csv_receiver.port), blendshapeCSV])
+        self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(mov_receiver.port), referenceMOV])
 
 class LiveLinkFaceServer: 
     """
@@ -215,16 +221,11 @@ class LiveLinkFaceServer:
 
         # Start client requests here
         self.dispatcher.map("/BatteryQuery", self.client.request_battery)
-        self.dispatcher.map("/SetFileName", lambda address, *args: self.client.set_filename(*args))
+        self.dispatcher.map("/SetFileName", lambda address, file_name: self.set_filename(address, file_name))
         self.dispatcher.map("/RecordStart", self.start_recording)
         self.dispatcher.map("/RecordStop", self.client.stop_capture)
         # When the recording is fully finished, instruct the client to save the file locally
         self.dispatcher.map("/RecordStopConfirm", self.client.save_file)
-
-        # Start TCP requests here
-        self.dispatcher.map("/CloseTCPListener", self.send_close_tcp)
-        self.dispatcher.map("/SendFileNameToTCP", self.send_file_name_tcp)
-        self.dispatcher.map("/Alive", self.ping_back)
 
         # Start health check requests here
         self.dispatcher.map("/Battery", lambda address, *args : self.set_battery_percentage(*args))
@@ -260,7 +261,6 @@ class LiveLinkFaceServer:
         This method starts recording with the iPhone and starts accepting a file with the TCP socket.
         """
         self.client.start_capture()
-        self.send_signal_recording_tcp()
     
     def stop_recording(self, *args):
         """
@@ -270,83 +270,9 @@ class LiveLinkFaceServer:
         This method stops recording with the iPhone.
         """
         self.client.stop_capture()
-        self.send_close_tcp()
 
-    def send_basic_cmd_tcp(self, cmd, extra="", port=None, *args):
-        """
-        Send a basic command to the TCP socket.
-
-        Args:
-        - cmd: The command to be sent.
-        - extra: Additional information to be sent.
-
-        Description:
-        This method sends a basic message containing a command to the TCP socket.
-        """
-        if port is None:
-            port = self.args.get('receive_csv_port', None)
-
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect((IP_MACHINE, port))
-
-            # Send the recording message
-            close_message = "COMMAND:" + cmd + "!" + extra
-            client_socket.sendall(struct.pack('>I', len(close_message)))
-            client_socket.sendall(close_message.encode())
-
-    def send_close_tcp(self, *args):
-        """
-        Ask the TCP socket to close itself.
-
-        Description:
-        This method asks the TCP socket to close itself.
-        """
-        self.send_basic_cmd_tcp('CLOSE', port=self.args.get('receive_csv_port', None))
-        self.send_basic_cmd_tcp('CLOSE', port=self.args.get('receive_video_port', None))
-
-    def send_file_name_tcp(self, addr, file_name, *args):
-        """
-        Send a file name to the TCP socket.
-
-        Args:
-        - addr: The address.
-        - file_name: The name of the file to be sent.
-
-        Description:
-        This method sends the TCP socket a file name.
-        """
-        self.send_basic_cmd_tcp('FILE', file_name)
-        self.send_basic_cmd_tcp('FILE', file_name, port=self.args.receive_video_port)
-
-    def send_are_you_okay_tcp(self, *args):
-        """
-        Ask the TCP socket if it is okay.
-
-        Description:
-        This method asks the TCP socket if it is okay.
-        """
-        self.send_basic_cmd_tcp('ALIVE')
-        self.send_basic_cmd_tcp('ALIVE', port=self.args.receive_video_port)
-
-    def send_signal_recording_tcp(self, *args):
-        """
-        Set the TCP socket to "file receiving" mode.
-
-        Description:
-        This method sets the TCP socket to the "file receiving" mode.
-        """
-        self.send_basic_cmd_tcp('RECORD')
-        self.send_basic_cmd_tcp('RECORD', port=self.args.receive_video_port)
-
-    def ping_back(self, *args):
-        """
-        Respond to requests, indicating that the OSC server is alive.
-
-        Description:
-        This method responds to requests, indicating that the OSC server is alive.
-        """
-        print("OSC SERVER ALIVE")
-        self.send_are_you_okay_tcp()
+    def set_filename(self, addr, file_name, *args):
+        self.client.set_filename(file_name)
 
     def default(self, address, *args):
         """
