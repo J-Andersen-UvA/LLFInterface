@@ -6,3 +6,5 @@ llf_save_path_csv: 'D:\LiveLinkFace\LiveLinkFaceCSV'
 receive_csv_port: 8020 # Port for receiving data from LLF
 llf_save_path_video: 'D:\LiveLinkFace\LiveLinkFaceVideo'
 receive_video_port: 8030 # Port for receiving video from LLF
+
+endpoint: 'https://signcollect.nl/razerUpload/upload.php'

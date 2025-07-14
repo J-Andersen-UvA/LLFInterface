@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Union
 import time
 import errno
+import os
+import requests
 
 class FileReceiver:
     def __init__(
@@ -14,6 +16,8 @@ class FileReceiver:
         output_dir: Union[str, Path],
         filename: str,
         max_port_tries: int = 5,
+        endpoint: str = 'https://signcollect.nl/razerUpload/upload.php',
+        send_to_endpoint: bool = True
     ):
         """
         Start listening immediately on `port`. When a client connects and sends
@@ -23,6 +27,8 @@ class FileReceiver:
         self.host = host
         self.port = port
         self.output_dir = Path(output_dir)
+        self.endpoint = endpoint
+        self.send_to_endpoint = send_to_endpoint
         self.filename = filename
         self._init_output_dir()
 
@@ -95,9 +101,63 @@ class FileReceiver:
                     f.write(chunk)
             print(f"[receiver:{self.filename}] Saved file to {out_path}")
 
+            if self.send_to_endpoint:
+                self._go_send_files_to_endpoint()
+
         except Exception as e:
             print(f"[receiver:{self.filename}] Error: {e}")
         finally:
             conn.close()
             self._sock.close()
             print(f"[receiver:{self.filename}] Shutdown listener")
+
+    def _go_send_files_to_endpoint(self):
+        """
+        Send all files in self.output_dir to the endpoint.
+        """
+        for file in self.output_dir.glob("*"):
+            if file.is_file():
+                try:
+                    response = self._send_file_to_endpoint(
+                        self.endpoint,
+                        file,
+                        field_name="file",
+                        extra_data={"filename": file.name},
+                    )
+                    print(f"[receiver:{self.filename}] Successfully uploaded {file.name}: {response.status_code}")
+                except requests.HTTPError as e:
+                    print(f"[receiver:{self.filename}] Failed to upload {file.name}: {e}")
+                except Exception as e:
+                    print(f"[receiver:{self.filename}] Error sending file {file.name}: {e}")
+
+    def _send_file_to_endpoint(self, endpoint: str, file_path: str, field_name: str = "file", extra_data: dict = None, headers: dict = None) -> requests.Response:
+        """
+        Sends a file to a specified HTTP endpoint using multipart/form-data.
+
+        :param endpoint: The server's upload URL (e.g. "https://signcollect.nl/studioFilesServer/upload-mocap").
+        :param file_path: Path to the file to be sent.
+        :param field_name: The form field name expected by the server for file uploads.
+        :param extra_data: Optional dict of additional form fields to include in the POST.
+        :param headers: Optional dict of HTTP headers to include (e.g. authentication tokens).
+        :return: The `requests.Response` object from the server.
+        :raises: `requests.HTTPError` if the upload fails (non-2xx status code).
+        """
+        # Verify the file exists
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"No such file: {file_path}")
+
+        # Prepare extra form fields
+        data = extra_data or {}
+        
+        # Open the file in binary mode and send it
+        with open(file_path, "rb") as f:
+            files = {
+                field_name: (os.path.basename(file_path), f)
+            }
+            # Perform the POST
+            resp = requests.post(endpoint, files=files, data=data, headers=headers)
+        
+        # Raise an exception for error codes (4xx, 5xx)
+        resp.raise_for_status()
+        return resp
+    
