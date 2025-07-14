@@ -4,6 +4,7 @@ import threading
 from pathlib import Path
 from typing import Union
 import time
+import errno
 
 class FileReceiver:
     def __init__(
@@ -12,6 +13,7 @@ class FileReceiver:
         port: int,
         output_dir: Union[str, Path],
         filename: str,
+        max_port_tries: int = 5,
     ):
         """
         Start listening immediately on `port`. When a client connects and sends
@@ -25,10 +27,30 @@ class FileReceiver:
         self._init_output_dir()
 
         # set up the listening socket
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._sock.bind((self.host, self.port))
-        self._sock.listen(1)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        # attempt to bind across a small range
+        for offset in range(max_port_tries):
+            try_port = port + offset
+            try:
+                sock.bind((self.host, try_port))
+                self.port = try_port
+                break
+            except OSError as e:
+                if e.errno == errno.EADDRINUSE:
+                    print(f"[receiver:{self.filename}] Port {try_port} in use, trying {try_port+1}…")
+                    continue
+                else:
+                    sock.close()
+                    raise
+
+        if self.port is None:
+            sock.close()
+            raise RuntimeError(f"[receiver:{self.filename}] Could not bind on ports {port}–{port+max_port_tries-1}")
+
+        sock.listen(1)
+        self._sock = sock
 
         # background thread to handle exactly one transfer
         self._thread = threading.Thread(target=self._serve_once, daemon=True)

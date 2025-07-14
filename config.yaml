@@ -3,6 +3,6 @@ listen_port: 8010 # Port for listening to OSC messages
 llf_port: 8006 # Port for LLF on iPhone has to match the one in the iOS app
 
 llf_save_path_csv: 'D:\LiveLinkFace\LiveLinkFaceCSV'
-receive_csv_port: 8007 # Port for receiving data from LLF
+receive_csv_port: 8020 # Port for receiving data from LLF
 llf_save_path_video: 'D:\LiveLinkFace\LiveLinkFaceVideo'
-receive_video_port: 8008 # Port for receiving video from LLF
+receive_video_port: 8030 # Port for receiving video from LLF

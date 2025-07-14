@@ -183,8 +183,8 @@ class LiveLinkFaceClient:
         csv_receiver = FileReceiver(host=IP_MACHINE, port=self.args.get('receive_csv_port', None), output_dir=self.args.get('llf_save_path_csv', None), filename=splitBlendshapeCSV)
         mov_receiver = FileReceiver(host=IP_MACHINE, port=self.args.get('receive_video_port', None), output_dir=self.args.get('llf_save_path_video', None), filename=splitReferenceMOV)
         print(f"send the transport towards:\tCSV{IP_MACHINE}:{str(self.args.get('receive_csv_port', None))}\tMOV{IP_MACHINE}:{str(self.args.get('receive_video_port', None))}")
-        self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(self.args.get('receive_csv_port', None)), blendshapeCSV])
-        self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(self.args.get('receive_video_port', None)), referenceMOV])
+        self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(csv_receiver.port), blendshapeCSV])
+        self.send_message_to_iphone("/Transport", [IP_MACHINE + ':' + str(mov_receiver.port), referenceMOV])
 
 class LiveLinkFaceServer: 
     """
