@@ -25,7 +25,7 @@ import threading
 
 async def main():
     # Load configuration
-    with open("config.yaml", "r") as f:
+    with open("C:\\Users\\VICON\\Desktop\\Code\\recording\\LLFInterface\\config.yaml", "r") as f:
         args = yaml.safe_load(f)
 
     # 1) Register Zeroconf _off_ the main loop to avoid deadlock
@@ -57,7 +57,9 @@ async def main():
 
     try:
         print("Starting LiveLinkFace interface…")
-        await disco.start_server_async()
+        await asyncio.gather(
+            disco.start_server_async()
+        )
     except KeyboardInterrupt:
         print("Interrupted by user, shutting down…")
     except Exception as e:

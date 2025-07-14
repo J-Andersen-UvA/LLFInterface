@@ -59,13 +59,16 @@ class WebSocketServer:
             self.llf_server.stop_recording()
         elif msg.startswith("SetName"):
             print(f"[LLF WebSocket] Received 'SetName' message: {msg[len('SetName '):]}")
-            self.llf_server.client.set_filename(msg[len('SetName '):])
+            self.llf_server.set_filename(websocket, msg[len('SetName '):])
+            # self.llf_server.client.set_filename(msg[len('SetName '):])
+            # self.llf_server.send_file_name_tcp(websocket, msg[len('SetName '):])
         elif msg.startswith("health"):
             print("[LLF WebSocket] Received 'health' message.")
             if not self.llf_server.client.phone_present:
                 iphone_ip = msg[len('health '):]
                 self.llf_server.client.init_apple_con(iphone_ip)
-                status, response = self.llf_server.health_check()
 
             status, response = self.llf_server.health_check()
+            response = "Good" if status else response
+            print(f"[LLF WebSocket] Health check status: {status}, response: {response}")
             await websocket.send("Good" if status else response) if websocket else None
