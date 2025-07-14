@@ -1,1 +1,6 @@
 testCon.py
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+__pycache__
