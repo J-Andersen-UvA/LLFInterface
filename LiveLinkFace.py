@@ -35,11 +35,24 @@ from pythonosc.osc_server import BlockingOSCUDPServer
 from fileReceiver import FileReceiver
 import sys
 import socket
-import struct
 
-# Pick up your machine’s LAN IP and pack to 4-byte form
-IP_MACHINE = socket.gethostbyname(socket.gethostname())
+IP_MACHINE = ""
 IP_IPHONE = ""
+
+def get_local_ip_for_dest(dest_ip):
+    """
+    Opens a dummy UDP socket to dest_ip and reads back the local side address.
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # port number doesn’t matter since we won't actually send anything
+        s.connect((dest_ip, 1))
+        local_ip = s.getsockname()[0]
+    except Exception:
+        local_ip = None
+    finally:
+        s.close()
+    return local_ip
 
 class LiveLinkFaceClient:
     """
@@ -75,6 +88,7 @@ class LiveLinkFaceClient:
         global IP_IPHONE
         self.port = args.get('llf_port', None)
         self.phone_present = False
+        self.phone_handshake = False
 
         self.record_stop_confirm = True
 
@@ -92,12 +106,14 @@ class LiveLinkFaceClient:
     
     def init_apple_con(self, ip_iphone):
         global IP_IPHONE
+        global IP_MACHINE
 
         if self.phone_present:
             return
 
         IP_IPHONE = ip_iphone
         print("Phone initialized, sending to: ", IP_IPHONE, self.port)
+        IP_MACHINE = get_local_ip_for_dest(IP_IPHONE)
         self.toIphone = SimpleUDPClient(IP_IPHONE, self.port)
         self.phone_present = True
         self.send_message_to_iphone("/OSCSetSendTarget", [IP_MACHINE, self.port])
@@ -180,6 +196,7 @@ class LiveLinkFaceClient:
         Description:
         This method sends a transport message to the iPhone server to save a file.
         """
+        print(f"[LLF] Saving file with command: {command}, timecode: {timecode}, blendshapeCSV: {blendshapeCSV}, referenceMOV: {referenceMOV}")
         self.record_stop_confirm = True
         # File name has the format 20250714_test7_250714_5_0/test7_250714_5_0_vislabLivelink_cal.csv so lets remove the first part
         splitBlendshapeCSV = blendshapeCSV.split("/")[-1]
@@ -220,7 +237,7 @@ class LiveLinkFaceServer:
 
         # Start server rules here, add a default rule for all other incoming messages
         self.dispatcher = Dispatcher()
-        self.dispatcher.map("/OSCSetSendTargetConfirm", print)
+        self.dispatcher.map("/OSCSetSendTargetConfirm", self.set_target_confirmed)
         self.dispatcher.map("/QuitServer", self.quit_server)
 
         # Start client requests here
@@ -291,7 +308,7 @@ class LiveLinkFaceServer:
         """
         print(f"{address}: {args}")
 
-    def health_check(self, *args):
+    def health_check(self, *args, debug=False):
         """
         Perform a health check.
 
@@ -299,15 +316,26 @@ class LiveLinkFaceServer:
         This method performs a health check by sending a message to the iPhone server.
         """
         try:
+            if not self.client.phone_present:
+                if debug:
+                    print("[LLF Warning] iPhone is not present.")
+                return False, "iPhone is not present"
+            if not self.client.phone_handshake:
+                if debug:
+                    print("[LLF Warning] iPhone handshake not confirmed.")
+                return False, "iPhone not sending messages to pc"
             self.client.request_battery()
             if self.battery_percentage < 11.0:
-                print(f"[LLF Warning] Battery percentage is low: {self.battery_percentage}%")
+                if debug:
+                    print(f"[LLF Warning] Battery percentage is low: {self.battery_percentage}%")
                 return False, "Battery percentage is low"
             if not self.client.phone_present:
-                print("[LLF Warning] iPhone is not present.")
+                if debug:
+                    print("[LLF Warning] iPhone is not present.")
                 return False, "iPhone is not present"
             if not self.client.record_stop_confirm:
-                print("[LLF Warning] Record stop confirm not received by iPhone.")
+                if debug:
+                    print("[LLF Warning] Record stop confirm not received by iPhone.")
                 return False, "Record stop confirm not received by iPhone"
             return True, ""
         except Exception as e:
@@ -324,6 +352,16 @@ class LiveLinkFaceServer:
         This method sets the battery percentage for the iPhone server.
         """
         self.battery_percentage = flt * 100.0
+
+    def set_target_confirmed(self, *args):
+        """
+        Set the target confirmed.
+
+        Description:
+        This method is called when the target is confirmed.
+        """
+        print("[LLF] Target confirmed by iPhone.")
+        self.client.phone_handshake = True
 
     def stop_server(self):
         """
